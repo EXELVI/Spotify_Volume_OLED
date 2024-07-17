@@ -30,9 +30,8 @@ boolean bCW;
 
 // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 112)
 const int epd_bitmap_allArray_LEN = 1;
-const unsigned char* epd_bitmap_allArray[1] = {
-	epd_bitmap_lock_fill
-};
+const unsigned char *epd_bitmap_allArray[1] = {
+    epd_bitmap_lock_fill};
 
 const char *host = "api.spotify.com";
 #include "arduino_secrets.h"
@@ -48,6 +47,7 @@ JSONVar myObject;
 
 String device_name = "Device";
 bool support_volume = true;
+int volume = 0;
 
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
@@ -126,17 +126,42 @@ void printIntToMatrix(int number)
   matrix.endDraw();
 }
 
-void printVolumeBar(int percent) // Into oled
+void printVolumeBar(int percent, bool editing) // Into oled
 {
   int percentMapped = map(percent, 0, 100, 0, 128);
-  display.setCursor(0, 0);
-  display.println("Volume:" + String(percent) + "%");
-  display.setCursor(0, 8);
-  display.drawRect(0, 16, 128, 8, WHITE);
-  display.fillRect(0, 16, percentMapped, 8, WHITE);
+  display.drawRect(0, editing ? 0 : 32, 128, 8, WHITE);
+  display.fillRect(0, editing ? 0 : 32, percentMapped, 8, WHITE);
+
+  if (editing)
+  {
+    display.drawRect(49, 7, 30, 9, WHITE);
+    display.setCursor(51, 8);
+    display.print(String(percent) + "%");
+  }
 }
 
 bool blinked = false;
+
+void printMain(bool editing)
+{
+  display.clearDisplay();
+  printVolumeBar(volume, editing);
+  if (!editing)
+  {
+    display.setCursor(0, 0);
+    display.println(device_name);
+    printWifiBar();
+    display.setCursor(35, 10);
+    display.println("Volume:");
+  }
+
+  display.setCursor(35, 16);
+  display.setTextSize(2);
+  display.print(String(encoderPosCount) + "%");
+  display.setTextSize(1);
+
+  display.display();
+}
 
 void setup()
 {
@@ -267,17 +292,9 @@ void loop()
       {
         int volumeIndex = line.indexOf("volume_percent") + 17;
         int volumeEndIndex = line.indexOf(",", volumeIndex);
-        int volume = line.substring(volumeIndex, volumeEndIndex).toInt();
+        volume = line.substring(volumeIndex, volumeEndIndex).toInt();
         Serial.println(volume);
         encoderPosCount = volume;
-        printIntToMatrix(encoderPosCount);
-        printVolumeBar(volume);
-        display.setCursor(35, 10);
-        display.setTextSize(2);
-        display.println(String(volume) + "%");
-        display.setTextSize(1);
-        display.display();
-
       }
       if (line.indexOf("name") != -1)
       {
@@ -286,7 +303,6 @@ void loop()
         String name = line.substring(nameIndex, nameEndIndex - 1);
         device_name = name;
         Serial.println(name);
-
       }
       if (line.indexOf("supports_volume") != -1)
       {
@@ -295,11 +311,6 @@ void loop()
         String supportsVolume = line.substring(supportsVolumeIndex, supportsVolumeEndIndex);
         support_volume = supportsVolume == "true";
         Serial.println(support_volume);
-        display.setCursor(8, 2);
-        if (!support_volume)
-        {
-          display.drawBitmap(10, 0, epd_bitmap_allArray[0], 32, 23, WHITE);
-        }
       }
     }
   }
@@ -439,12 +450,13 @@ void loop()
       Serial.println("connection failed");
       display.setCursor(0, 16);
       display.println("Connection failed");
-       display.display();
+      display.display();
     }
   }
   else if (token != "")
   {
     aVal = digitalRead(pinA);
+    printMain(true);
 
     if (aVal != pinALast)
     {
@@ -553,20 +565,6 @@ void loop()
       if (editing)
       {
         editing = false;
-
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.println("Device: ");
-        display.setCursor(0, 1);
-        display.println(device_name);
-        display.setCursor(0, 2);
-        display.println("Volume: ");
-        if (!support_volume)
-        {
-          display.write(byte(6));
-        }
-        display.setCursor(0, 3);
-        display.println(String(encoderPosCount));
 
         // request
         client.stop();
