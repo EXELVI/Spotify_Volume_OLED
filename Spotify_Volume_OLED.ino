@@ -26,6 +26,14 @@ boolean bCW;
 #include <Arduino_JSON.h>
 #include "WiFiSSLClient.h"
 
+#include "icons.h"
+
+// Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 112)
+const int epd_bitmap_allArray_LEN = 1;
+const unsigned char* epd_bitmap_allArray[1] = {
+	epd_bitmap_lock_fill
+};
+
 const char *host = "api.spotify.com";
 #include "arduino_secrets.h"
 
@@ -121,9 +129,8 @@ void printIntToMatrix(int number)
 void printVolumeBar(int percent) // Into oled
 {
   int percentMapped = map(percent, 0, 100, 0, 128);
-  display.clearDisplay();
   display.setCursor(0, 0);
-  display.println("Volume:");
+  display.println("Volume:" + String(percent) + "%");
   display.setCursor(0, 8);
   display.drawRect(0, 16, 128, 8, WHITE);
   display.fillRect(0, 16, percentMapped, 8, WHITE);
@@ -264,6 +271,13 @@ void loop()
         Serial.println(volume);
         encoderPosCount = volume;
         printIntToMatrix(encoderPosCount);
+        printVolumeBar(volume);
+        display.setCursor(35, 10);
+        display.setTextSize(2);
+        display.println(String(volume) + "%");
+        display.setTextSize(1);
+        display.display();
+
       }
       if (line.indexOf("name") != -1)
       {
@@ -284,7 +298,7 @@ void loop()
         display.setCursor(8, 2);
         if (!support_volume)
         {
-          display.write(byte(6));
+          display.drawBitmap(10, 0, epd_bitmap_allArray[0], 32, 23, WHITE);
         }
       }
     }
