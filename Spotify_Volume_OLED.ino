@@ -118,6 +118,18 @@ void printIntToMatrix(int number)
   matrix.endDraw();
 }
 
+void printVolumeBar(int percent) // Into oled
+{
+  int percentMapped = map(percent, 0, 100, 0, 128);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Volume:");
+  display.setCursor(0, 8);
+  display.drawRect(0, 16, 128, 8, WHITE);
+  display.fillRect(0, 16, percentMapped, 8, WHITE);
+  
+}
+
 bool blinked = false;
 
 void setup()
@@ -176,11 +188,11 @@ void setup()
   display.clearDisplay();
   display.setCursor(0, 0);
   display.println("Connect to:");
-  display.setCursor(0, 1);
+  display.setCursor(0, 8);
   display.println("http://" + WiFi.localIP().toString() + "/");
-  display.setCursor(0, 2);
+  display.setCursor(0, 16);
   display.println("to authorize.");
-  display.setCursor(0, 3);
+  display.setCursor(0, 24);
   display.println("Awaiting callback...");
 }
 
@@ -199,7 +211,7 @@ void loop()
         token = line.substring(tokenIndex, tokenEndIndex);
         Serial.println(token);
 
-        display.setCursor(0, 3);
+        display.setCursor(0, 24);
         display.println("Token Received");
 
         delay(1000);
@@ -211,13 +223,13 @@ void loop()
         display.clearDisplay();
         display.setCursor(0, 0);
         display.println("Starting connection to ");
-        display.setCursor(0, 1);
+        display.setCursor(0, 8);
         display.println(host);
 
         if (client.connect(host, 443))
         {
           Serial.println("connected to server");
-          display.setCursor(0, 2);
+          display.setCursor(0, 16);
           display.println("Connected to server");
           client.println("GET /v1/me/player HTTP/1.1");
           client.println("Host: api.spotify.com");
@@ -230,7 +242,7 @@ void loop()
         else
         {
           Serial.println("connection failed");
-          display.setCursor(0, 2);
+          display.setCursor(0, 16);
           display.println("Connection failed");
         }
       }
@@ -248,13 +260,13 @@ void loop()
         Serial.println(volume);
         encoderPosCount = volume;
         printIntToMatrix(encoderPosCount);
-        display.setCursor(0, 2);
+        display.setCursor(0, 16);
         display.println("                    ");
-        display.setCursor(0, 2);
+        display.setCursor(0, 16);
         display.println("Volume:");
-        display.setCursor(0, 3);
+        display.setCursor(0, 16);
         display.println("                    ");
-        display.setCursor(0, 3);
+        display.setCursor(0, 16);
         display.println(String(volume));
       }
       if (line.indexOf("name") != -1)
@@ -579,36 +591,86 @@ void loop()
   }
 }
 
-void printWifiStatus()
+
+void printWifiBar() // Function to print the WiFi bar
+{
+  long rssi = WiFi.RSSI(); // Get the RSSI (Received Signal Strength Indicator)
+
+  // It is a simple function that draws a bar based on the signal strength
+  if (rssi > -55) 
+  {
+    display.fillRect(102, 7, 4, 1, WHITE); 
+    display.fillRect(107, 6, 4, 2, WHITE);
+    display.fillRect(112, 4, 4, 4, WHITE);
+    display.fillRect(117, 2, 4, 6, WHITE);
+    display.fillRect(122, 0, 4, 8, WHITE);
+  }
+  else if (rssi<-55 & rssi> - 65)
+  {
+    display.fillRect(102, 7, 4, 1, WHITE);
+    display.fillRect(107, 6, 4, 2, WHITE);
+    display.fillRect(112, 4, 4, 4, WHITE);
+    display.fillRect(117, 2, 4, 6, WHITE);
+    display.drawRect(122, 0, 4, 8, WHITE);
+  }
+  else if (rssi<-65 & rssi> - 75)
+  {
+    display.fillRect(102, 7, 4, 1, WHITE);
+    display.fillRect(107, 6, 4, 2, WHITE);
+    display.fillRect(112, 4, 4, 4, WHITE);
+    display.drawRect(117, 2, 4, 6, WHITE);
+    display.drawRect(122, 0, 4, 8, WHITE);
+  }
+  else if (rssi<-75 & rssi> - 85)
+  {
+    display.fillRect(102, 7, 4, 1, WHITE);
+    display.fillRect(107, 6, 4, 2, WHITE);
+    display.drawRect(112, 4, 4, 4, WHITE);
+    display.drawRect(117, 2, 4, 6, WHITE);
+    display.drawRect(122, 0, 4, 8, WHITE);
+  }
+  else if (rssi<-85 & rssi> - 96)
+  {
+    display.fillRect(102, 7, 4, 1, WHITE);
+    display.drawRect(107, 6, 4, 2, WHITE);
+    display.drawRect(112, 4, 4, 4, WHITE);
+    display.drawRect(117, 2, 4, 6, WHITE);
+    display.drawRect(122, 0, 4, 8, WHITE);
+  }
+  else
+  {
+    display.drawRect(102, 7, 4, 1, WHITE);
+    display.drawRect(107, 6, 4, 2, WHITE);
+    display.drawRect(112, 4, 4, 4, WHITE);
+    display.drawRect(117, 2, 4, 6, WHITE);
+    display.drawRect(122, 0, 4, 8, WHITE);
+  }
+}
+
+void printWifiStatus() // Function to print the WiFi status
 {
   Serial.print("SSID: ");
   Serial.println(WiFi.SSID());
-  display.clearDisplay();
-  display.setCursor(0, 2);
-  display.print("SSID: " + String(WiFi.SSID()));
-
-  int signalStrenght = map(WiFi.RSSI(), -105, -40, 0, 100);
-
-  // printBar(signalStrenght, "Signal Strength");
+  display.clearDisplay(); 
+  display.setCursor(0, 0);
+  display.print(String(WiFi.SSID()));
 
   IPAddress ip = WiFi.localIP();
   Serial.print("IP Address: ");
   Serial.println(ip);
 
-  String ipString = WiFi.localIP().toString();
-  char ipCh[ipString.length() + 1];
-  strcpy(ipCh, ipString.c_str());
-
-  printToMatrix(ipCh);
-
-  display.setCursor(0, 2);
-  display.print("IP: " + ipString);
+  display.setCursor(0, 20);
+  display.println(ip);
 
   long rssi = WiFi.RSSI();
+
+  printWifiBar();
 
   Serial.print("signal strength (RSSI):");
   Serial.print(rssi);
   Serial.println(" dBm");
 
-  display.setCursor(0, 0);
+  display.setCursor(0, 10);
+  display.print(String(rssi) + " dBm");
+  display.display();
 }
