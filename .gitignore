@@ -1,0 +1,6 @@
+arduino_secrets.h
+.vscode/
+node_modules/
+test.js
+package-lock.json
+package.json
