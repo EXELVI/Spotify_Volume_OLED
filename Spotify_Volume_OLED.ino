@@ -127,7 +127,6 @@ void printVolumeBar(int percent) // Into oled
   display.setCursor(0, 8);
   display.drawRect(0, 16, 128, 8, WHITE);
   display.fillRect(0, 16, percentMapped, 8, WHITE);
-  
 }
 
 bool blinked = false;
@@ -194,6 +193,7 @@ void setup()
   display.println("to authorize.");
   display.setCursor(0, 24);
   display.println("Awaiting callback...");
+  display.display();
 }
 
 void loop()
@@ -213,6 +213,7 @@ void loop()
 
         display.setCursor(0, 24);
         display.println("Token Received");
+        display.display();
 
         delay(1000);
         client.stop();
@@ -225,12 +226,14 @@ void loop()
         display.println("Starting connection to ");
         display.setCursor(0, 8);
         display.println(host);
+        display.display();
 
         if (client.connect(host, 443))
         {
           Serial.println("connected to server");
           display.setCursor(0, 16);
           display.println("Connected to server");
+          display.display();
           client.println("GET /v1/me/player HTTP/1.1");
           client.println("Host: api.spotify.com");
           client.println("Authorization: Bearer " + token);
@@ -244,6 +247,7 @@ void loop()
           Serial.println("connection failed");
           display.setCursor(0, 16);
           display.println("Connection failed");
+          display.display();
         }
       }
     }
@@ -260,14 +264,6 @@ void loop()
         Serial.println(volume);
         encoderPosCount = volume;
         printIntToMatrix(encoderPosCount);
-        display.setCursor(0, 16);
-        display.println("                    ");
-        display.setCursor(0, 16);
-        display.println("Volume:");
-        display.setCursor(0, 16);
-        display.println("                    ");
-        display.setCursor(0, 16);
-        display.println(String(volume));
       }
       if (line.indexOf("name") != -1)
       {
@@ -276,14 +272,7 @@ void loop()
         String name = line.substring(nameIndex, nameEndIndex - 1);
         device_name = name;
         Serial.println(name);
-        display.setCursor(0, 0);
-        display.println("                    ");
-        display.setCursor(0, 0);
-        display.println("Device:");
-        display.setCursor(0, 1);
-        display.println("                    ");
-        display.setCursor(0, 1);
-        display.println(name);
+
       }
       if (line.indexOf("supports_volume") != -1)
       {
@@ -363,6 +352,7 @@ void loop()
             display.clearDisplay();
             display.setCursor(0, 0);
             display.println("Callback Received");
+            display.display();
             clientServer.println("HTTP/1.1 200 OK");
             clientServer.println("Content-type:text/html");
             clientServer.println();
@@ -408,14 +398,16 @@ void loop()
     display.clearDisplay();
     display.setCursor(0, 0);
     display.println("Starting connection to ");
-    display.setCursor(0, 1);
+    display.setCursor(0, 8);
     display.println("accounts.spotify.com");
+    display.display();
 
     if (client.connect("accounts.spotify.com", 443))
     {
       Serial.println("connected to server");
-      display.setCursor(0, 2);
+      display.setCursor(0, 16);
       display.println("Connected to server");
+      display.display();
       client.println("POST /api/token HTTP/1.1");
       client.println("Host: accounts.spotify.com");
       client.println("Content-Type: application/x-www-form-urlencoded");
@@ -431,8 +423,9 @@ void loop()
     else
     {
       Serial.println("connection failed");
-      display.setCursor(0, 2);
+      display.setCursor(0, 16);
       display.println("Connection failed");
+       display.display();
     }
   }
   else if (token != "")
@@ -591,15 +584,14 @@ void loop()
   }
 }
 
-
 void printWifiBar() // Function to print the WiFi bar
 {
   long rssi = WiFi.RSSI(); // Get the RSSI (Received Signal Strength Indicator)
 
   // It is a simple function that draws a bar based on the signal strength
-  if (rssi > -55) 
+  if (rssi > -55)
   {
-    display.fillRect(102, 7, 4, 1, WHITE); 
+    display.fillRect(102, 7, 4, 1, WHITE);
     display.fillRect(107, 6, 4, 2, WHITE);
     display.fillRect(112, 4, 4, 4, WHITE);
     display.fillRect(117, 2, 4, 6, WHITE);
@@ -651,7 +643,7 @@ void printWifiStatus() // Function to print the WiFi status
 {
   Serial.print("SSID: ");
   Serial.println(WiFi.SSID());
-  display.clearDisplay(); 
+  display.clearDisplay();
   display.setCursor(0, 0);
   display.print(String(WiFi.SSID()));
 
