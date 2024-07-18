@@ -126,18 +126,14 @@ void printIntToMatrix(int number)
   matrix.endDraw();
 }
 
-void printVolumeBar(int percent, bool editing) // Into oled
+void printVolumeBar(int percent) // Into oled
 {
   int percentMapped = map(percent, 0, 100, 0, 128);
-  display.drawRect(0, editing ? 0 : 32, 128, 8, WHITE);
-  display.fillRect(0, editing ? 0 : 32, percentMapped, 8, WHITE);
-
-  if (editing)
-  {
-    display.drawRect(49, 7, 30, 9, WHITE);
-    display.setCursor(51, 8);
-    display.print(String(percent) + "%");
-  }
+  display.drawRect(0, 0, 128, 8, WHITE);
+  display.fillRect(0, 0, percentMapped, 8, WHITE);
+  display.drawRect(49, 7, 30, 9, WHITE);
+  display.setCursor(51, 8);
+  display.print(String(percent) + "%");
 }
 
 bool blinked = false;
@@ -145,19 +141,28 @@ bool blinked = false;
 void printMain(bool editing)
 {
   display.clearDisplay();
-  printVolumeBar(volume, editing);
+
   if (!editing)
   {
     display.setCursor(0, 0);
     display.println(device_name);
     printWifiBar();
-    display.setCursor(35, 10);
+    display.setCursor(support_volume ? 0 : 35, 10);
     display.println("Volume:");
   }
+  else
+  {
+    printVolumeBar(encoderPosCount);
+  }
 
-  display.setCursor(35, 16);
+  if (!support_volume)
+  {
+    display.drawBitmap(0, 10, epd_bitmap_allArray[0], 32, 23, WHITE);
+  }
+
+  display.setCursor(support_volume ? 0 : 35, 16);
   display.setTextSize(2);
-  display.print(String(encoderPosCount) + "%");
+  display.print(String(volume) + "%");
   display.setTextSize(1);
 
   display.display();
@@ -236,6 +241,30 @@ void loop()
     {
       String line = client.readStringUntil('\r');
       Serial.println(line);
+
+    if (line == "\n") {
+      Serial.println("headers received");
+      String payload = client.readString();
+      JSONVar myObject = JSON.parse(payload);
+      Serial.println(payload);
+
+      if(myObject.hasOwnProperty("error")) {
+        Serial.println("Error");
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("Error");
+        display.setCursor(0, 8);
+        display.println(myObject["error"]);
+        display.setCursor(0, 16);
+        display.println(myObject["error_description"]);
+        display.display();
+        delay(10000);
+        token = "";
+        client.stop();
+        return;
+      }
+    }
+
       if (line.indexOf("access_token") != -1)
       {
         int tokenIndex = line.indexOf("access_token") + 15;
@@ -378,6 +407,7 @@ void loop()
             display.setCursor(0, 0);
             display.println("Callback Received");
             display.display();
+
             clientServer.println("HTTP/1.1 200 OK");
             clientServer.println("Content-type:text/html");
             clientServer.println();
@@ -456,7 +486,6 @@ void loop()
   else if (token != "")
   {
     aVal = digitalRead(pinA);
-    printMain(true);
 
     if (aVal != pinALast)
     {
@@ -465,11 +494,11 @@ void loop()
         // repeat 3 times
         for (int i = 0; i < 3; i++)
         {
-          display.setCursor(8, 2);
-          display.println(" ");
+          display.drawBitmap(0, 10, epd_bitmap_allArray[0], 32, 23, WHITE);
+          display.display();
           delay(500);
-          display.setCursor(8, 2);
-          display.write(byte(6));
+          display.clearDisplay();
+          display.display();
           delay(500);
         }
       }
@@ -510,7 +539,7 @@ void loop()
         Serial.print("Encoder Position: ");
         Serial.println(encoderPosCount);
         printIntToMatrix(encoderPosCount);
-        // printBar(encoderPosCount, "Volume");
+        printMain(editing);
       }
     }
 
@@ -566,6 +595,7 @@ void loop()
       {
         editing = false;
 
+        printMain(editing);
         // request
         client.stop();
 
@@ -591,8 +621,6 @@ void loop()
         delay(1000);
       }
     }
-    printIntToMatrix(encoderPosCount);
-    delay(1000);
   }
 }
 
