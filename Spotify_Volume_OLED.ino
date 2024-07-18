@@ -73,6 +73,12 @@ const unsigned long blinkInterval = 500;
 unsigned long refreshTime = 0;
 const unsigned long refreshInterval = 100;
 
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 5;
+
+int clockWiseCount = 0;
+int counterClockWiseCount = 0;
+
 String getRandomString(int length)
 {
   String randomString;
@@ -361,6 +367,7 @@ void loop()
         volume = line.substring(volumeIndex, volumeEndIndex).toInt();
         Serial.println(volume);
         encoderPosCount = volume;
+        printMain(editing);
       }
       if (line.indexOf("name") != -1)
       {
@@ -369,6 +376,7 @@ void loop()
         String name = line.substring(nameIndex, nameEndIndex - 1);
         device_name = name;
         Serial.println(name);
+        printMain(editing);
       }
       if (line.indexOf("supports_volume") != -1)
       {
@@ -377,9 +385,6 @@ void loop()
         String supportsVolume = line.substring(supportsVolumeIndex, supportsVolumeEndIndex);
         support_volume = supportsVolume == "true";
         Serial.println(support_volume);
-      }
-      if (line == "\n")
-      {
         printMain(editing);
       }
     }
@@ -527,10 +532,11 @@ void loop()
   else if (token != "")
   {
     aVal = digitalRead(pinA);
+
     if (aVal != pinALast)
     {
       if (!support_volume)
-      { 
+      {
         for (int i = 0; i < 3; i++)
         {
           display.drawBitmap(0, 10, epd_bitmap_allArray[0], 32, 23, WHITE);
@@ -552,12 +558,40 @@ void loop()
       }
       else
       {
+
         editing = true;
         if (digitalRead(pinB) != aVal)
         {
-          encoderPosCount++;
-          encoderPosCount++;
+          // Moving clockwise
           bCW = true;
+          clockWiseCount++;
+        }
+        else
+        {
+          // Moving counter-clockwise
+          bCW = false;
+          counterClockWiseCount++;
+        }
+
+        // Determining final direction based on counts
+        if (clockWiseCount > counterClockWiseCount)
+        {
+          bCW = true;
+        }
+        else
+        {
+          bCW = false;
+        }
+
+        // Reset the counts after determining direction
+        clockWiseCount = 0;
+        counterClockWiseCount = 0;
+
+        
+        if (bCW)
+        {
+          encoderPosCount++;
+          encoderPosCount++;
           if (encoderPosCount > 100)
           {
             encoderPosCount = 100;
@@ -567,31 +601,21 @@ void loop()
         {
           encoderPosCount--;
           encoderPosCount--;
-          bCW = false;
-
           if (encoderPosCount < 0)
           {
             encoderPosCount = 0;
           }
         }
         Serial.print("Rotated: ");
-        if (bCW)
-        {
-          Serial.println("clockwise");
-        }
-        else
-        {
-          Serial.println("counterclockwise");
-        }
+        Serial.println(bCW ? "Clockwise" : "Counter-Clockwise");
         Serial.print("Encoder Position: ");
         Serial.println(encoderPosCount);
         printIntToMatrix(encoderPosCount);
         printMain(editing);
       }
-  
     }
     pinALast = aVal;
-    
+
     if ((millis() - lastConnectionTime > postingInterval) && requestSent && !editing)
     {
       lastConnectionTime = millis();
@@ -644,6 +668,7 @@ void loop()
       {
         editing = false;
 
+        volume = encoderPosCount;
         printMain(editing);
         // request
         client.stop();
@@ -669,12 +694,6 @@ void loop()
         printIntToMatrix(encoderPosCount);
         delay(1000);
       }
-    }
-
-    if (millis() - refreshTime > refreshInterval)
-    {
-      refreshTime = millis();
-      printMain(editing);
     }
   }
 }
