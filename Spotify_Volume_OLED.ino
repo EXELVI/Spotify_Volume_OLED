@@ -70,6 +70,9 @@ WiFiSSLClient client;
 unsigned long lastBlinkTime = 0;
 const unsigned long blinkInterval = 500;
 
+unsigned long refreshTime = 0;
+const unsigned long refreshInterval = 100;
+
 String getRandomString(int length)
 {
   String randomString;
@@ -147,7 +150,7 @@ void printMain(bool editing)
     display.setCursor(0, 0);
     display.println(device_name);
     printWifiBar();
-    display.setCursor(support_volume ? 0 : 35, 10);
+    display.setCursor(support_volume ? 0 : 35, 8);
     display.println("Volume:");
   }
   else
@@ -242,73 +245,107 @@ void loop()
       String line = client.readStringUntil('\r');
       Serial.println(line);
 
-    if (line == "\n") {
-      Serial.println("headers received");
-      String payload = client.readString();
-      JSONVar myObject = JSON.parse(payload);
-      Serial.println(payload);
-
-      if(myObject.hasOwnProperty("error")) {
-        Serial.println("Error");
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.println("Error");
-        display.setCursor(0, 8);
-        display.println(myObject["error"]);
-        display.setCursor(0, 16);
-        display.println(myObject["error_description"]);
-        display.display();
-        delay(10000);
-        token = "";
-        client.stop();
-        return;
-      }
-    }
-
-      if (line.indexOf("access_token") != -1)
+      if (line == "\n")
       {
-        int tokenIndex = line.indexOf("access_token") + 15;
-        int tokenEndIndex = line.indexOf("\"", tokenIndex);
-        token = line.substring(tokenIndex, tokenEndIndex);
-        Serial.println(token);
+        Serial.println("headers received");
+        String payload = client.readString();
+        JSONVar myObject = JSON.parse(payload);
+        Serial.println(payload);
 
-        display.setCursor(0, 24);
-        display.println("Token Received");
-        display.display();
-
-        delay(1000);
-        client.stop();
-
-        delay(1000);
-        Serial.print("Starting connection to server... " + String(host) + ": ");
-
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.println("Starting connection to ");
-        display.setCursor(0, 8);
-        display.println(host);
-        display.display();
-
-        if (client.connect(host, 443))
+        if (myObject.hasOwnProperty("error"))
         {
-          Serial.println("connected to server");
+          Serial.println("Error");
+          display.clearDisplay();
+          display.setCursor(0, 0);
+          display.println("Error");
+          display.setCursor(0, 8);
+          display.println(myObject["error"]);
           display.setCursor(0, 16);
-          display.println("Connected to server");
+          display.println(myObject["error_description"]);
           display.display();
-          client.println("GET /v1/me/player HTTP/1.1");
-          client.println("Host: api.spotify.com");
-          client.println("Authorization: Bearer " + token);
-          client.println("Content-Type: application/json");
-          client.println("Accept: application/json");
-          client.println("Connection: close");
-          client.println();
+          delay(10000);
+          token = "";
+          code = "";
+          waitingCallback = true;
+          requestSent = false;
+          display.clearDisplay();
+          display.setCursor(0, 0);
+          display.println("Connect to:");
+          display.setCursor(0, 8);
+          display.println("http://" + WiFi.localIP().toString() + "/");
+          display.setCursor(0, 16);
+          display.println("to authorize.");
+          display.display();
+          client.stop();
+          return;
+        }
+        else if (myObject.hasOwnProperty("access_token"))
+        {
+          token = (String)myObject["access_token"];
+          Serial.println(token);
+          display.setCursor(0, 24);
+          display.println("Token Received");
+          display.display();
+
+          delay(1000);
+          client.stop();
+
+          delay(1000);
+          Serial.print("Starting connection to server... " + String(host) + ": ");
+
+          display.clearDisplay();
+          display.setCursor(0, 0);
+          display.println("Starting connection to ");
+          display.setCursor(0, 8);
+          display.println(host);
+          display.display();
+
+          if (client.connect(host, 443))
+          {
+            Serial.println("connected to server");
+            display.setCursor(0, 16);
+            display.println("Connected to server");
+            display.display();
+            client.println("GET /v1/me/player HTTP/1.1");
+            client.println("Host: api.spotify.com");
+            client.println("Authorization: Bearer " + token);
+            client.println("Content-Type: application/json");
+            client.println("Accept: application/json");
+            client.println("Connection: close");
+            client.println();
+          }
+          else
+          {
+            Serial.println("connection failed");
+            display.setCursor(0, 16);
+            display.println("Connection failed");
+            display.display();
+          }
         }
         else
         {
-          Serial.println("connection failed");
-          display.setCursor(0, 16);
-          display.println("Connection failed");
+          Serial.println("Error");
+          display.clearDisplay();
+          display.setCursor(0, 0);
+          display.println("Error");
+          display.setCursor(0, 8);
+          display.println("Error");
           display.display();
+          delay(10000);
+          token = "";
+          code = "";
+          waitingCallback = true;
+          requestSent = false;
+          display.clearDisplay();
+          display.setCursor(0, 0);
+          display.println("Connect to:");
+          display.setCursor(0, 8);
+          display.println("http://" + WiFi.localIP().toString() + "/");
+          display.setCursor(0, 16);
+          display.println("to authorize.");
+          display.display();
+          client.stop();
+          return;
         }
       }
     }
@@ -340,6 +377,10 @@ void loop()
         String supportsVolume = line.substring(supportsVolumeIndex, supportsVolumeEndIndex);
         support_volume = supportsVolume == "true";
         Serial.println(support_volume);
+      }
+      if (line == "\n")
+      {
+        printMain(editing);
       }
     }
   }
@@ -486,25 +527,31 @@ void loop()
   else if (token != "")
   {
     aVal = digitalRead(pinA);
-
     if (aVal != pinALast)
     {
       if (!support_volume)
-      {
-        // repeat 3 times
+      { 
         for (int i = 0; i < 3; i++)
         {
           display.drawBitmap(0, 10, epd_bitmap_allArray[0], 32, 23, WHITE);
           display.display();
           delay(500);
           display.clearDisplay();
+          display.setCursor(0, 0);
+          display.println(device_name);
+          printWifiBar();
+          display.setCursor(support_volume ? 0 : 35, 8);
+          display.println("Volume:");
+          display.setCursor(support_volume ? 0 : 35, 16);
+          display.setTextSize(2);
+          display.print(String(volume) + "%");
+          display.setTextSize(1);
           display.display();
           delay(500);
         }
       }
       else
       {
-
         editing = true;
         if (digitalRead(pinB) != aVal)
         {
@@ -541,8 +588,10 @@ void loop()
         printIntToMatrix(encoderPosCount);
         printMain(editing);
       }
+  
     }
-
+    pinALast = aVal;
+    
     if ((millis() - lastConnectionTime > postingInterval) && requestSent && !editing)
     {
       lastConnectionTime = millis();
@@ -620,6 +669,12 @@ void loop()
         printIntToMatrix(encoderPosCount);
         delay(1000);
       }
+    }
+
+    if (millis() - refreshTime > refreshInterval)
+    {
+      refreshTime = millis();
+      printMain(editing);
     }
   }
 }
