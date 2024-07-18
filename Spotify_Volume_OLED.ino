@@ -532,9 +532,9 @@ void loop()
   else if (token != "")
   {
     aVal = digitalRead(pinA);
-
     if (aVal != pinALast)
     {
+
       if (!support_volume)
       {
         for (int i = 0; i < 3; i++)
@@ -555,67 +555,32 @@ void loop()
           display.display();
           delay(500);
         }
+        printMain(editing);
+        editing = false;
+        return;
+      }
+
+      editing = true;
+
+      if (digitalRead(pinB) != aVal)
+      {
+        encoderPosCount++;
+        encoderPosCount++;
+        bCW = true;
       }
       else
       {
-
-        editing = true;
-        if (digitalRead(pinB) != aVal)
-        {
-          // Moving clockwise
-          bCW = true;
-          clockWiseCount++;
-        }
-        else
-        {
-          // Moving counter-clockwise
-          bCW = false;
-          counterClockWiseCount++;
-        }
-
-        // Determining final direction based on counts
-        if (clockWiseCount > counterClockWiseCount)
-        {
-          bCW = true;
-        }
-        else
-        {
-          bCW = false;
-        }
-
-        // Reset the counts after determining direction
-        clockWiseCount = 0;
-        counterClockWiseCount = 0;
-
-        
-        if (bCW)
-        {
-          encoderPosCount++;
-          encoderPosCount++;
-          if (encoderPosCount > 100)
-          {
-            encoderPosCount = 100;
-          }
-        }
-        else
-        {
-          encoderPosCount--;
-          encoderPosCount--;
-          if (encoderPosCount < 0)
-          {
-            encoderPosCount = 0;
-          }
-        }
-        Serial.print("Rotated: ");
-        Serial.println(bCW ? "Clockwise" : "Counter-Clockwise");
-        Serial.print("Encoder Position: ");
-        Serial.println(encoderPosCount);
-        printIntToMatrix(encoderPosCount);
-        printMain(editing);
+        encoderPosCount--;
+        encoderPosCount--;
+        bCW = false;
       }
+      Serial.print("Rotated: ");
+      Serial.println(bCW ? "clockwise" : "counterclockwise");
+      Serial.print("Encoder Position: ");
+      Serial.println(encoderPosCount);
+      printMain(editing);
     }
-    pinALast = aVal;
-
+   pinALast = aVal;
     if ((millis() - lastConnectionTime > postingInterval) && requestSent && !editing)
     {
       lastConnectionTime = millis();
@@ -641,24 +606,6 @@ void loop()
       else
       {
         Serial.println("connection failed");
-      }
-    }
-
-    if (editing)
-    {
-      if (millis() - lastBlinkTime > blinkInterval)
-      {
-        if (blinked)
-        {
-          printIntToMatrix(encoderPosCount);
-          blinked = false;
-        }
-        else
-        {
-          matrix.clear();
-
-          blinked = true;
-        }
       }
     }
 
