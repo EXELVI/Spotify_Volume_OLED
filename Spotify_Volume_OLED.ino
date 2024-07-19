@@ -567,12 +567,20 @@ void loop()
         encoderPosCount++;
         encoderPosCount++;
         bCW = true;
+        if (encoderPosCount > 100)
+        {
+          encoderPosCount = 100;
+        }
       }
       else
       {
         encoderPosCount--;
         encoderPosCount--;
         bCW = false;
+        if (encoderPosCount < 0)
+        {
+          encoderPosCount = 0;
+        }
       }
       Serial.print("Rotated: ");
       Serial.println(bCW ? "clockwise" : "counterclockwise");
@@ -580,7 +588,7 @@ void loop()
       Serial.println(encoderPosCount);
       printMain(editing);
     }
-   pinALast = aVal;
+    pinALast = aVal;
     if ((millis() - lastConnectionTime > postingInterval) && requestSent && !editing)
     {
       lastConnectionTime = millis();
